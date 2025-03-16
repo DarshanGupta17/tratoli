@@ -10,10 +10,16 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+from datetime import timedelta
 from pathlib import Path
-
+from decouple import config
+from corsheaders.defaults import default_headers
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+import os
 
 
 # Quick-start development settings - unsuitable for production
@@ -27,16 +33,26 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+AUTH_USER_MODEL = "users.CustomUser"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 # Application definition
 
 INSTALLED_APPS = [
+    "corsheaders",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
+    "rest_framework.authtoken",
+    "rest_framework_simplejwt.token_blacklist",
+    "users"
 ]
 
 MIDDLEWARE = [
@@ -48,6 +64,18 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://intimate-blowfish-internal.ngrok-free.app',  # Add your Ngrok URL here
+    'http://localhost:3000'
+]
+CSRF_COOKIE_SECURE = True  # Set to True in production if using HTTPS
+CSRF_COOKIE_SAMESITE = 'None'  # 'None' allows cross-site cookies
+
 
 ROOT_URLCONF = "TMS.urls"
 
@@ -73,13 +101,30 @@ WSGI_APPLICATION = "TMS.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if not config("USE_Potgres",cast=bool):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
     }
+else:
+    DATABASES = {
+   'default': {
+       'ENGINE': 'django.db.backends.postgresql',
+       'NAME': config('DB_NAME'),
+       'USER': config('DB_USER'),
+       'PASSWORD': config('DB_PASSWORD'),
+       'HOST': config('DB_HOST'),
+       'PORT': config('DB_PORT'),
+   }
 }
 
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -100,6 +145,48 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
+CORS_ORIGIN_ALLOW_ALL = False
+if DEBUG == True:
+    CORS_ORIGIN_ALLOW_ALL = True
+CORS_ALLOW_CREDENTIALS = True ## Used to pass the cookie in the request
+CORS_ALLOW_HEADERS = list(default_headers) + ['Set-Cookie']
+CORS_ORIGIN_WHITELIST = (
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1',
+  'http://localhost:3000'
+)
+CORS_ALLOWED_ORIGINS = (
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1',
+  'http://localhost:3000'
+)
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS',
+]
+
+
+SIMPLE_JWT = {
+    'AUTH_COOKIE_REFRESH': 'refresh_token',  # The name of the cookie
+    'AUTH_COOKIE': 'access',
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),  # Lifetime of the access token
+    'AUTH_COOKIE_SECURE': True,  # Set to True in a production environment
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_SAMESITE': "None",
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=365),
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_COOKIE_DOMAIN': None,
+}
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+}
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -114,8 +201,9 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = "static/"
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
