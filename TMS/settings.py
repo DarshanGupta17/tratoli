@@ -45,6 +45,7 @@ ACCOUNT_AUTHENTICATION_METHOD = 'email'
 
 INSTALLED_APPS = [
     "corsheaders",
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -79,11 +80,21 @@ CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TASK_SERIALIZER = 'json'
 
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.environ.get('CELERY_BROKER_URL'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
 CELERY_BEAT_SCHEDULE = {
     'send_due_date_reminder': {
         'task': 'tasks.tasks.send_due_date_reminder',
-        # 'schedule': crontab(minute=0, hour='*'),
-        'schedule': timedelta(seconds=10),
+        'schedule': crontab(minute=0, hour='*'),
+        # 'schedule': timedelta(seconds=10),
     },
 }
 
@@ -113,7 +124,10 @@ TEMPLATES = [
     },
 ]
 
+
+
 WSGI_APPLICATION = "TMS.wsgi.application"
+ASGI_APPLICATION = "TMS.asgi.application"
 
 
 # Database
@@ -203,6 +217,14 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',  # Limits per user
+        'rest_framework.throttling.AnonRateThrottle',  # Limits for anonymous users
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': '100/hour',
+        'anon': '10/minute',
+    }
 }
 
 # Internationalization

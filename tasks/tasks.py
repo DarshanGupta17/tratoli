@@ -18,6 +18,7 @@ def send_task_assignment_email(task_id):
                 fail_silently=False,
             )
     except Task.DoesNotExist:
+        print("error")
         pass  # Handle the case where the task doesn't exist
 
 @shared_task

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  django:
+    build: .
+    container_name: tms
+    command: sh -c "python manage.py migrate && daphne -b 0.0.0.0 -p 3001 TMS.asgi:application & python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+      - "3001:3001"
+    depends_on:
+      - redis
+    environment:
+      - DEBUG=True
+      - REDIS_URL=redis://redis:6379/0
+
+  redis:
+    image: redis:latest
+    container_name: redis_cache
+    ports:
+      - "6379:6379"
+
+  celery:
+    build: .
+    container_name: celery_worker
+    command: celery -A TMS worker --loglevel=info
+    depends_on:
+      - redis
+      - django
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+
+  celery-beat:
+    build: .
+    container_name: celery_beat
+    command: celery -A TMS beat --loglevel=info
+    depends_on:
+      - redis
+      - django
+      - celery
+    environment:
+      - REDIS_URL=redis://redis:6379/0
