@@ -20,7 +20,9 @@ from django.templatetags.static import static
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 import os
-
+from celery.schedules import crontab
+from dotenv import load_dotenv
+load_dotenv()
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -52,7 +54,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework.authtoken",
     "rest_framework_simplejwt.token_blacklist",
-    "users"
+    "users",
+    "tasks"
 ]
 
 MIDDLEWARE = [
@@ -68,6 +71,21 @@ AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
 ]
 
+# Celery Settings
+CELERY_TIMEZONE = 'Asia/Kolkata'
+CELERY_BROKER_URL =config('CELERY_BROKER_URL')
+CELERY_RESULT_BACKEND =config('CELERY_RESULT_BACKEND')
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+
+CELERY_BEAT_SCHEDULE = {
+    'send_due_date_reminder': {
+        'task': 'tasks.tasks.send_due_date_reminder',
+        # 'schedule': crontab(minute=0, hour='*'),
+        'schedule': timedelta(seconds=10),
+    },
+}
 
 CSRF_TRUSTED_ORIGINS = [
     'https://intimate-blowfish-internal.ngrok-free.app',  # Add your Ngrok URL here
@@ -205,6 +223,13 @@ STATIC_URL = "static/"
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_USE_TLS = True
+EMAIL_HOST = "smtp.gmail.com"
+EMAIL_PORT = 587
+EMAIL_HOST_USER = DEFAULT_FROM_EMAIL = os.environ.get('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
+print(EMAIL_HOST_USER)
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
