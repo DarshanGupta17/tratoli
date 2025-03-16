@@ -98,7 +98,8 @@ class TaskAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     
-    def delete(self, request, pk):
+    def delete(self, request):
+        pk = request.query_params.get('task_id')
         task = get_object_or_404(Task, pk=pk, assigned_to=request.user)
         task.delete()
 
